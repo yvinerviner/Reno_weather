@@ -2,75 +2,40 @@
 
 import { useEffect, useState } from "react";
 
-const RENO_LAT = 39.5296;
-const RENO_LON = -119.8138;
-const RENO_TZ = "America/Los_Angeles";
+const MARKET_TZ = "America/New_York";
 
-type WeatherData = {
-  temperatureF: number;
-  feelsLikeF: number;
-  weatherCode: number;
-  humidity: number;
-  windSpeedMph: number;
-  windDirectionDeg: number;
+type Quote = {
+  symbol: string;
+  price: number;
+  previousClose: number;
+  dayHigh: number;
+  dayLow: number;
+  volume: number;
+  currency: string;
+  marketState: string;
+  timestamp: number;
 };
 
-type DailyForecast = {
-  date: string;
-  weatherCode: number;
-  maxF: number;
-  minF: number;
-  precipitationChance: number;
-};
-
-function weatherCodeToDescription(code: number): string {
-  const map: Record<number, string> = {
-    0: "Clear sky",
-    1: "Mainly clear",
-    2: "Partly cloudy",
-    3: "Overcast",
-    45: "Fog",
-    48: "Depositing rime fog",
-    51: "Light drizzle",
-    53: "Moderate drizzle",
-    55: "Dense drizzle",
-    61: "Slight rain",
-    63: "Moderate rain",
-    65: "Heavy rain",
-    71: "Slight snow",
-    73: "Moderate snow",
-    75: "Heavy snow",
-    80: "Slight rain showers",
-    81: "Moderate rain showers",
-    82: "Violent rain showers",
-    95: "Thunderstorm",
+function formatMarketState(state: string): string {
+  const map: Record<string, string> = {
+    REGULAR: "Market open",
+    PRE: "Pre-market",
+    POST: "After hours",
+    POSTPOST: "After hours",
+    CLOSED: "Market closed",
   };
-  return map[code] ?? "Unknown";
+  return map[state] ?? state;
 }
 
-function weatherCodeToIcon(code: number): string {
-  if (code === 0 || code === 1) return "☀️";
-  if (code === 2) return "⛅";
-  if (code === 3) return "☁️";
-  if (code === 45 || code === 48) return "🌫️";
-  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "🌧️";
-  if ([71, 73, 75].includes(code)) return "❄️";
-  if (code === 95) return "⛈️";
-  return "❓";
-}
-
-function degreesToCompass(deg: number): string {
-  const directions = [
-    "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
-  ];
-  return directions[Math.round(deg / 22.5) % 16];
+function formatVolume(volume: number): string {
+  if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(2)}M`;
+  if (volume >= 1_000) return `${(volume / 1_000).toFixed(1)}K`;
+  return `${volume}`;
 }
 
 export default function Home() {
   const [now, setNow] = useState<Date | null>(null);
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [forecast, setForecast] = useState<DailyForecast[]>([]);
+  const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,49 +45,26 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    async function fetchWeather() {
+    async function fetchQuote() {
       try {
-        const url =
-          `https://api.open-meteo.com/v1/forecast?latitude=${RENO_LAT}&longitude=${RENO_LON}` +
-          `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m` +
-          `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
-          `&temperature_unit=fahrenheit&wind_speed_unit=mph` +
-          `&timezone=${encodeURIComponent(RENO_TZ)}&forecast_days=6`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Weather request failed");
+        const res = await fetch("/api/quote");
+        if (!res.ok) throw new Error("Quote request failed");
         const data = await res.json();
-
-        setWeather({
-          temperatureF: data.current.temperature_2m,
-          feelsLikeF: data.current.apparent_temperature,
-          weatherCode: data.current.weather_code,
-          humidity: data.current.relative_humidity_2m,
-          windSpeedMph: data.current.wind_speed_10m,
-          windDirectionDeg: data.current.wind_direction_10m,
-        });
-
-        const days: DailyForecast[] = data.daily.time
-          .map((date: string, i: number) => ({
-            date,
-            weatherCode: data.daily.weather_code[i],
-            maxF: data.daily.temperature_2m_max[i],
-            minF: data.daily.temperature_2m_min[i],
-            precipitationChance: data.daily.precipitation_probability_max[i],
-          }))
-          .slice(1, 6);
-        setForecast(days);
+        if (data.error) throw new Error(data.error);
+        setQuote(data);
+        setError(null);
       } catch {
-        setError("Could not load weather data.");
+        setError("Could not load quote data.");
       }
     }
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 10 * 60 * 1000);
+    fetchQuote();
+    const interval = setInterval(fetchQuote, 30 * 1000);
     return () => clearInterval(interval);
   }, []);
 
   const timeString = now
     ? new Intl.DateTimeFormat("en-US", {
-        timeZone: RENO_TZ,
+        timeZone: MARKET_TZ,
         hour: "numeric",
         minute: "2-digit",
         second: "2-digit",
@@ -132,7 +74,7 @@ export default function Home() {
 
   const dateString = now
     ? new Intl.DateTimeFormat("en-US", {
-        timeZone: RENO_TZ,
+        timeZone: MARKET_TZ,
         weekday: "long",
         year: "numeric",
         month: "long",
@@ -140,94 +82,88 @@ export default function Home() {
       }).format(now)
     : "";
 
+  const change = quote ? quote.price - quote.previousClose : 0;
+  const changePercent = quote ? (change / quote.previousClose) * 100 : 0;
+  const isUp = change >= 0;
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-sky-100 to-sky-300 dark:from-zinc-900 dark:to-zinc-800 px-6 py-12">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-zinc-100 to-zinc-300 dark:from-zinc-950 dark:to-zinc-900 px-6 py-12">
       <main className="flex w-full max-w-2xl flex-col items-center gap-6 rounded-2xl bg-white/80 dark:bg-black/40 p-10 shadow-xl backdrop-blur">
-        <h1 className="text-2xl font-semibold text-zinc-800 dark:text-zinc-100">
-          Reno, Nevada
-        </h1>
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-zinc-800 dark:text-zinc-100">
+            Tesla, Inc. (TSLA)
+          </h1>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            {quote ? formatMarketState(quote.marketState) : "…"}
+          </p>
+        </div>
 
         <div className="text-center">
-          <p className="text-5xl font-bold tabular-nums text-zinc-900 dark:text-white">
+          <p className="text-4xl font-bold tabular-nums text-zinc-900 dark:text-white">
             {timeString}
           </p>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {dateString}
+            {dateString} (ET)
           </p>
         </div>
 
         {error && <p className="text-red-500">{error}</p>}
-        {!error && !weather && (
-          <p className="text-zinc-500 dark:text-zinc-400">Loading weather…</p>
+        {!error && !quote && (
+          <p className="text-zinc-500 dark:text-zinc-400">Loading quote…</p>
         )}
 
-        {weather && (
+        {quote && (
           <>
             <div className="text-center">
-              <p className="text-6xl font-bold text-orange-500">
-                {Math.round(weather.temperatureF)}°F
+              <p className="text-6xl font-bold text-zinc-900 dark:text-white">
+                ${quote.price.toFixed(2)}
               </p>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-                {weatherCodeToIcon(weather.weatherCode)}{" "}
-                {weatherCodeToDescription(weather.weatherCode)}
+              <p
+                className={`mt-1 text-lg font-semibold ${
+                  isUp ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {isUp ? "▲" : "▼"} {isUp ? "+" : ""}
+                {change.toFixed(2)} ({isUp ? "+" : ""}
+                {changePercent.toFixed(2)}%)
               </p>
             </div>
 
-            <div className="grid w-full grid-cols-3 gap-4 rounded-xl bg-white/60 dark:bg-white/5 p-4 text-center">
+            <div className="grid w-full grid-cols-2 gap-4 rounded-xl bg-white/60 dark:bg-white/5 p-4 text-center sm:grid-cols-4">
               <div>
                 <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Feels like
+                  Prev close
                 </p>
                 <p className="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                  {Math.round(weather.feelsLikeF)}°F
+                  ${quote.previousClose.toFixed(2)}
                 </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Humidity
+                  Day high
                 </p>
                 <p className="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                  {weather.humidity}%
+                  ${quote.dayHigh.toFixed(2)}
                 </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Wind
+                  Day low
                 </p>
                 <p className="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                  {Math.round(weather.windSpeedMph)} mph {degreesToCompass(weather.windDirectionDeg)}
+                  ${quote.dayLow.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Volume
+                </p>
+                <p className="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
+                  {formatVolume(quote.volume)}
                 </p>
               </div>
             </div>
           </>
-        )}
-
-        {forecast.length > 0 && (
-          <div className="grid w-full grid-cols-5 gap-2">
-            {forecast.map((day) => (
-              <div
-                key={day.date}
-                className="flex flex-col items-center gap-1 rounded-xl bg-white/60 dark:bg-white/5 p-3 text-center"
-              >
-                <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                  {new Intl.DateTimeFormat("en-US", {
-                    weekday: "short",
-                    timeZone: "UTC",
-                  }).format(new Date(`${day.date}T00:00:00Z`))}
-                </p>
-                <p className="text-2xl">{weatherCodeToIcon(day.weatherCode)}</p>
-                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                  {Math.round(day.maxF)}°
-                </p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {Math.round(day.minF)}°
-                </p>
-                <p className="text-xs text-sky-600 dark:text-sky-400">
-                  💧{day.precipitationChance}%
-                </p>
-              </div>
-            ))}
-          </div>
         )}
       </main>
     </div>

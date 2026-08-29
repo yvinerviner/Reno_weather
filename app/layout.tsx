@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Tesla Trading",
-  description: "Live time, temperature, and forecast for Reno, Nevada.",
+  description: "Live TSLA stock price and market data.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
