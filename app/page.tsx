@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 const MARKET_TZ = "America/New_York";
 
@@ -89,6 +90,10 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-zinc-100 to-zinc-300 dark:from-zinc-950 dark:to-zinc-900 px-6 py-12">
       <main className="flex w-full max-w-2xl flex-col items-center gap-6 rounded-2xl bg-white/80 dark:bg-black/40 p-10 shadow-xl backdrop-blur">
+        <nav className="self-start text-sm text-sky-600 dark:text-sky-400">
+          <Link href="/strategy">Short strategy (paper) →</Link>
+        </nav>
+
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-zinc-800 dark:text-zinc-100">
             Tesla, Inc. (TSLA)
