@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reno Weather",
+  title: "Tesla Trading",
   description: "Live time, temperature, and forecast for Reno, Nevada.",
 };
 
