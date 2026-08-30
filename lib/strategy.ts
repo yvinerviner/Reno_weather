@@ -10,6 +10,20 @@ export type TradeEvent = {
   note: string;
 };
 
+export type StrategyParams = {
+  initialShares: number;
+  step: number;
+  multiplier: number;
+  maxShortShares: number;
+};
+
+export const DEFAULT_STRATEGY_PARAMS: StrategyParams = {
+  initialShares: 50,
+  step: 5,
+  multiplier: 2,
+  maxShortShares: Infinity,
+};
+
 export type SimResult = {
   status: "FLAT" | "OPEN" | "CLOSED";
   legs: Leg[];
@@ -25,21 +39,18 @@ export type SimResult = {
   unrealizedPnl: number;
 };
 
-const INITIAL_SHARES = 50;
-const STEP = 5;
-
-// addIndex: 1 = first add, 2 = second add, 3rd+ doubles the previous add size.
-function addSizeForIndex(addIndex: number): number {
-  if (addIndex === 1) return 50;
-  if (addIndex === 2) return 100;
-  return 100 * Math.pow(2, addIndex - 2);
+// addIndex: 1 = first add (same size as initial), 2nd+ grows by multiplier.
+function addSizeForIndex(addIndex: number, initialShares: number, multiplier: number): number {
+  return initialShares * Math.pow(multiplier, addIndex - 1);
 }
 
 export function simulateSession(
   bars: Bar[],
   nowSeconds: number,
-  marketCloseSeconds: number
+  marketCloseSeconds: number,
+  params: StrategyParams = DEFAULT_STRATEGY_PARAMS
 ): SimResult {
+  const { initialShares, step, multiplier, maxShortShares } = params;
   const events: TradeEvent[] = [];
   const legs: Leg[] = [];
 
@@ -62,39 +73,34 @@ export function simulateSession(
 
     if (status === "FLAT") {
       openPrice = bar.price;
-      legs.push({ shares: INITIAL_SHARES, price: bar.price, time: bar.time });
+      const openShares = Math.min(initialShares, maxShortShares);
+      legs.push({ shares: openShares, price: bar.price, time: bar.time });
       events.push({
         time: bar.time,
         type: "OPEN_SHORT",
-        shares: INITIAL_SHARES,
+        shares: openShares,
         price: bar.price,
-        note: `Opened short ${INITIAL_SHARES} @ $${bar.price.toFixed(2)}`,
+        note: `Opened short ${openShares} @ $${bar.price.toFixed(2)}`,
       });
       status = "OPEN";
-      stopPrice = openPrice + STEP;
-      nextAddTrigger = openPrice - STEP;
+      stopPrice = openPrice + step;
+      nextAddTrigger = openPrice - step;
       continue;
     }
 
     if (status !== "OPEN") continue;
 
-    if (stopPrice !== null && bar.price >= stopPrice) {
-      const totalShares = legs.reduce((s, l) => s + l.shares, 0);
-      const pnl = legs.reduce((s, l) => s + l.shares * (l.price - bar.price), 0);
-      realizedPnl += pnl;
-      events.push({
-        time: bar.time,
-        type: "STOP_OUT",
-        shares: totalShares,
-        price: bar.price,
-        note: `Stopped out: covered ${totalShares} @ $${bar.price.toFixed(2)} (P/L $${pnl.toFixed(2)})`,
-      });
-      status = "CLOSED";
-      continue;
-    }
+    // No intraday stop-out: stopPrice/breakeven is tracked for reference only
+    // (shown in the UI) — the position is only ever closed by the forced
+    // end-of-day close below, regardless of how far price moves against it.
 
     while (status === "OPEN" && nextAddTrigger !== null && bar.price <= nextAddTrigger) {
-      const addShares = addSizeForIndex(nextAddIndex);
+      const currentTotal = legs.reduce((s, l) => s + l.shares, 0);
+      const remainingCapacity = maxShortShares - currentTotal;
+      if (remainingCapacity <= 0) break; // already at the position-size cap
+
+      const rawAddShares = addSizeForIndex(nextAddIndex, initialShares, multiplier);
+      const addShares = Math.min(rawAddShares, remainingCapacity);
       const fillPrice = nextAddTrigger;
       legs.push({ shares: addShares, price: fillPrice, time: bar.time });
       recomputeStopAfterAdd();
@@ -106,7 +112,7 @@ export function simulateSession(
         note: `Added ${addShares} short @ $${fillPrice.toFixed(2)}. Stop moved to breakeven $${stopPrice!.toFixed(2)}`,
       });
       nextAddIndex += 1;
-      nextAddTrigger = (openPrice as number) - STEP * nextAddIndex;
+      nextAddTrigger = (openPrice as number) - step * nextAddIndex;
     }
   }
 
@@ -135,6 +141,12 @@ export function simulateSession(
       ? legs.reduce((s, l) => s + l.shares * (l.price - currentPrice!), 0)
       : 0;
 
+  const remainingCapacity = maxShortShares - openTotalShares;
+  const nextAddShares =
+    status === "OPEN" && remainingCapacity > 0
+      ? Math.min(addSizeForIndex(nextAddIndex, initialShares, multiplier), remainingCapacity)
+      : null;
+
   return {
     status,
     legs,
@@ -143,7 +155,7 @@ export function simulateSession(
     avgEntry: status === "OPEN" ? openAvgEntry : null,
     stopPrice: status === "OPEN" ? stopPrice : null,
     nextAddTrigger: status === "OPEN" ? nextAddTrigger : null,
-    nextAddShares: status === "OPEN" ? addSizeForIndex(nextAddIndex) : null,
+    nextAddShares,
     openPrice,
     currentPrice,
     realizedPnl,

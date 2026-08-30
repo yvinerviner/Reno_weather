@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 const MARKET_TZ = "America/New_York";
 
@@ -32,6 +31,19 @@ function formatVolume(volume: number): string {
   if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(2)}M`;
   if (volume >= 1_000) return `${(volume / 1_000).toFixed(1)}K`;
   return `${volume}`;
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/60">
+      <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+        {value}
+      </p>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -86,91 +98,69 @@ export default function Home() {
   const change = quote ? quote.price - quote.previousClose : 0;
   const changePercent = quote ? (change / quote.previousClose) * 100 : 0;
   const isUp = change >= 0;
+  const isMarketOpen = quote?.marketState === "REGULAR";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-zinc-100 to-zinc-300 dark:from-zinc-950 dark:to-zinc-900 px-6 py-12">
-      <main className="flex w-full max-w-2xl flex-col items-center gap-6 rounded-2xl bg-white/80 dark:bg-black/40 p-10 shadow-xl backdrop-blur">
-        <nav className="self-start text-sm text-sky-600 dark:text-sky-400">
-          <Link href="/strategy">Short strategy (paper) →</Link>
-        </nav>
-
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-zinc-800 dark:text-zinc-100">
-            Tesla, Inc. (TSLA)
-          </h1>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+          <div>
+            <h1 className="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+              TSLA <span className="font-normal text-zinc-400 dark:text-zinc-500">Tesla, Inc.</span>
+            </h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-500">NASDAQ</p>
+          </div>
+          <span className="flex items-center gap-1.5 rounded-full border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isMarketOpen ? "bg-emerald-500" : "bg-zinc-400 dark:bg-zinc-600"
+              }`}
+            />
             {quote ? formatMarketState(quote.marketState) : "…"}
-          </p>
+          </span>
         </div>
 
-        <div className="text-center">
-          <p className="text-4xl font-bold tabular-nums text-zinc-900 dark:text-white">
-            {timeString}
-          </p>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {dateString} (ET)
-          </p>
-        </div>
+        <div className="grid gap-6 p-6 sm:grid-cols-2">
+          <div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            {!error && !quote && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading quote…</p>
+            )}
+            {quote && (
+              <>
+                <p className="font-mono text-5xl font-bold tabular-nums text-zinc-900 dark:text-white">
+                  ${quote.price.toFixed(2)}
+                </p>
+                <p
+                  className={`mt-1 font-mono text-sm font-semibold tabular-nums ${
+                    isUp ? "text-emerald-500" : "text-red-500"
+                  }`}
+                >
+                  {isUp ? "▲" : "▼"} {isUp ? "+" : ""}
+                  {change.toFixed(2)} ({isUp ? "+" : ""}
+                  {changePercent.toFixed(2)}%)
+                </p>
+              </>
+            )}
+          </div>
 
-        {error && <p className="text-red-500">{error}</p>}
-        {!error && !quote && (
-          <p className="text-zinc-500 dark:text-zinc-400">Loading quote…</p>
-        )}
+          <div className="flex flex-col items-start sm:items-end">
+            <p className="font-mono text-2xl font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+              {timeString}
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{dateString} (ET)</p>
+          </div>
+        </div>
 
         {quote && (
-          <>
-            <div className="text-center">
-              <p className="text-6xl font-bold text-zinc-900 dark:text-white">
-                ${quote.price.toFixed(2)}
-              </p>
-              <p
-                className={`mt-1 text-lg font-semibold ${
-                  isUp ? "text-green-500" : "text-red-500"
-                }`}
-              >
-                {isUp ? "▲" : "▼"} {isUp ? "+" : ""}
-                {change.toFixed(2)} ({isUp ? "+" : ""}
-                {changePercent.toFixed(2)}%)
-              </p>
-            </div>
-
-            <div className="grid w-full grid-cols-2 gap-4 rounded-xl bg-white/60 dark:bg-white/5 p-4 text-center sm:grid-cols-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Prev close
-                </p>
-                <p className="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                  ${quote.previousClose.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Day high
-                </p>
-                <p className="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                  ${quote.dayHigh.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Day low
-                </p>
-                <p className="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                  ${quote.dayLow.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Volume
-                </p>
-                <p className="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                  {formatVolume(quote.volume)}
-                </p>
-              </div>
-            </div>
-          </>
+          <div className="grid grid-cols-2 gap-3 border-t border-zinc-200 p-6 pt-4 sm:grid-cols-4 dark:border-zinc-800">
+            <StatTile label="Prev close" value={`$${quote.previousClose.toFixed(2)}`} />
+            <StatTile label="Day high" value={`$${quote.dayHigh.toFixed(2)}`} />
+            <StatTile label="Day low" value={`$${quote.dayLow.toFixed(2)}`} />
+            <StatTile label="Volume" value={formatVolume(quote.volume)} />
+          </div>
         )}
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
