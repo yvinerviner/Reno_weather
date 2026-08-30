@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const from = searchParams.get("from") || DEFAULT_FROM;
+    const to = searchParams.get("to") || undefined;
 
     const initialSharesRaw = Number(searchParams.get("initialShares"));
     const initialShares =
@@ -44,7 +45,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const bars = loadCachedMinuteBars(SYMBOL, from) ?? (await fetchHourlyBars(SYMBOL, from));
+    const bars =
+      loadCachedMinuteBars(SYMBOL, from, to) ?? (await fetchHourlyBars(SYMBOL, from, to));
 
     const results = [];
     for (let i = 0; i < stepCount; i++) {

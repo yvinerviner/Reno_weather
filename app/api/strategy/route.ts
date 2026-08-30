@@ -9,7 +9,7 @@ import {
 const SYMBOL = "TSLA";
 const DEFAULT_HOLDING_SHARES = 480;
 
-function parseParams(searchParams: URLSearchParams): StrategyParams {
+function parseParams(searchParams: URLSearchParams): Omit<StrategyParams, "maxShortShares"> {
   const initialSharesRaw = Number(searchParams.get("initialShares"));
   const stepRaw = Number(searchParams.get("step"));
   const multiplierRaw = Number(searchParams.get("multiplier"));

@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
   try {
     const params = parseParams(request.nextUrl.searchParams);
     const from = request.nextUrl.searchParams.get("from") || DEFAULT_FROM;
+    const to = request.nextUrl.searchParams.get("to") || undefined;
 
     const holdingSharesRaw = Number(request.nextUrl.searchParams.get("shares"));
     const holdingShares =
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest) {
         ? holdingSharesRaw
         : DEFAULT_HOLDING_SHARES;
 
-    const bars = loadCachedMinuteBars(SYMBOL, from) ?? (await fetchHourlyBars(SYMBOL, from));
+    const bars =
+      loadCachedMinuteBars(SYMBOL, from, to) ?? (await fetchHourlyBars(SYMBOL, from, to));
     const backtest = runBacktest(bars, holdingShares, params);
 
     return NextResponse.json(backtest);

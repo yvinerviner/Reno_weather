@@ -229,6 +229,7 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [from, setFrom] = useState("2026-01-01");
+  const [to, setTo] = useState("");
   const [initialShares, setInitialShares] = useState(50);
   const [step, setStep] = useState(5);
   const [shares, setShares] = useState(480);
@@ -246,14 +247,14 @@ export default function HistoryPage() {
   useEffect(() => {
     setOptimizeData(null);
     setOptimizeError(null);
-  }, [from, initialShares, shares, multiplier]);
+  }, [from, to, initialShares, shares, multiplier]);
 
   async function runOptimize() {
     setOptimizing(true);
     setOptimizeError(null);
     try {
       const res = await fetch(
-        `/api/optimize?from=${from}&initialShares=${initialShares}&minStep=${minStep}&maxStep=${maxStep}&shares=${shares}&multiplier=${multiplier}`
+        `/api/optimize?from=${from}&to=${to}&initialShares=${initialShares}&minStep=${minStep}&maxStep=${maxStep}&shares=${shares}&multiplier=${multiplier}`
       );
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -270,7 +271,7 @@ export default function HistoryPage() {
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/backtest?from=${from}&initialShares=${initialShares}&step=${step}&shares=${shares}&multiplier=${multiplier}`
+          `/api/backtest?from=${from}&to=${to}&initialShares=${initialShares}&step=${step}&shares=${shares}&multiplier=${multiplier}`
         );
         const json = await res.json();
         if (json.error) throw new Error(json.error);
@@ -283,7 +284,7 @@ export default function HistoryPage() {
       }
     }
     fetchBacktest();
-  }, [from, initialShares, step, shares, multiplier]);
+  }, [from, to, initialShares, step, shares, multiplier]);
 
   const summary = data?.summary;
 
@@ -306,6 +307,17 @@ export default function HistoryPage() {
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
+              className="rounded border border-zinc-300 bg-white px-2 py-1 font-mono text-sm tabular-nums text-zinc-800 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
+            To date
+            <input
+              type="date"
+              value={to}
+              min={from}
+              placeholder="Latest"
+              onChange={(e) => setTo(e.target.value)}
               className="rounded border border-zinc-300 bg-white px-2 py-1 font-mono text-sm tabular-nums text-zinc-800 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </label>
