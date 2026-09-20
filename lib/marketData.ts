@@ -1,8 +1,36 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { DailyBar } from "@/lib/backtest";
+
+export type DailyBar = {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
 
 type IbkrBar = { t: number; o: number; h: number; l: number; c: number };
+
+// Reuse one formatter — constructing a new Intl.DateTimeFormat per call
+// (e.g. via toLocaleDateString with a timeZone option) is drastically
+// slower and dominates runtime over tens of thousands of bars.
+const tradingDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/New_York",
+});
+
+export function tradingDateKey(seconds: number): string {
+  return tradingDateFormatter.format(new Date(seconds * 1000));
+}
+
+export function groupByTradingDay(bars: DailyBar[]): Map<string, DailyBar[]> {
+  const map = new Map<string, DailyBar[]>();
+  for (const bar of bars) {
+    const key = tradingDateKey(bar.time);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(bar);
+  }
+  return map;
+}
 
 // Real 1-minute bars pulled once via scripts/fetch-ibkr-history.mjs from the
 // local IBKR gateway and cached to disk (IBKR's free intraday history isn't

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import StrategyPicker from "@/components/StrategyPicker";
 
 const MARKET_TZ = "America/New_York";
 
@@ -101,7 +102,7 @@ export default function Home() {
   const isMarketOpen = quote?.marketState === "REGULAR";
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6">
       <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <div>
@@ -161,6 +162,8 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <StrategyPicker />
     </main>
   );
 }

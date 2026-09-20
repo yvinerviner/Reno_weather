@@ -4,14 +4,9 @@ import {
   type StrategyParams,
   type TradeEvent,
 } from "@/lib/strategy";
+import { groupByTradingDay, type DailyBar } from "@/lib/marketData";
 
-export type DailyBar = {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-};
+export type { DailyBar };
 
 export type DayResult = {
   date: string;
@@ -71,27 +66,6 @@ function barToPseudoBars(bar: DailyBar) {
     { time: bar.time + subOffset * 2, price: extremes[1] },
     { time: bar.time + subOffset * 3, price: bar.close },
   ];
-}
-
-// Reuse one formatter — constructing a new Intl.DateTimeFormat per call
-// (e.g. via toLocaleDateString with a timeZone option) is drastically
-// slower and dominates runtime over tens of thousands of bars.
-const tradingDateFormatter = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/New_York",
-});
-
-function tradingDateKey(seconds: number): string {
-  return tradingDateFormatter.format(new Date(seconds * 1000));
-}
-
-function groupByTradingDay(hourlyBars: DailyBar[]): Map<string, DailyBar[]> {
-  const map = new Map<string, DailyBar[]>();
-  for (const bar of hourlyBars) {
-    const key = tradingDateKey(bar.time);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(bar);
-  }
-  return map;
 }
 
 export function runBacktest(
