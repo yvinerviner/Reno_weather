@@ -23,7 +23,7 @@ const STRATEGIES: Strategy[] = [
   {
     name: "Covered Call",
     description: "Sell monthly calls 15–20% out of the money against your holding.",
-    comingSoon: true,
+    historyHref: "/history/covered-call",
   },
 ];
 
